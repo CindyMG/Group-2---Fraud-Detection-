@@ -1,0 +1,731 @@
+---
+title: "Fraud Detection - Group 3"
+author: "Cindy Gachuhi, Karen Mwaura, Joseph Kiburu, Kipsang Mutai & Kelvin Kilel"
+date: "2/8/2022"
+output: html_document
+---
+
+
+# Defining the question.
+
+Fraud is constantly evolving at very high rates. The world is adopting digital technology. While this is a good thing for companies and financial institutions, it also comes with its downside, the likes of cyber hacking, identity theft and insurance scams.  Hence, companies are adopting new solutions to respond to the online threats that come with going digital. 
+
+Fraud detection plays a part in reducing the number of fraud cases. Fraud detection is a set of activities undertaken to prevent money or property from being obtained through false pretences.
+Fraud in banks would include activities like forging cheques or using a stolen credit/ debit card.
+
+Banks can incorporate fraud detection into their websites, company policies, employee training, and enhanced security features.
+
+Fraud has been rampant among financial institutions in which the majority end up having more liabilities than assets. Due to fraud, people may also lack faith in the institutions.  It’s eroding the profitability of businesses with disturbing effects on firm solvency.
+
+
+# Objective
+  ### overall Objective
+Identify potential fraud transactions as a result of analysing customer behaviour regarding the amount and type of     transactions made over a period of time.
+
+  ### Specific objectives:
+*How many transactions are fraudulent?*
+*What types of transactions correspond with fraud?*
+*What types of transactions are flagged as fraudulent?*
+*What does the distribution of transaction amount look like for fraudulent cases?*
+*Does fraud occur more often at a certain time of day?*
+
+        
+        
+
+# Data sourcing
+ The dataset is from kaggle and the link is https://www.kaggle.com/gopalmahadevan/fraud-detection-example?select=fraud_dataset_example.csv
+ 
+ 
+
+
+# Experimental design 
+
+To conduct a thorough analysis of our variables and apply various supervised and unsupervised learning models to train our data into giving accurate predictions on whether transactions are fraudulent or otherwise.
+
+# Defining the metrics of success
+
+.Predicting fraud detection in order to reduce fraudulent activities online.
+
+.Providing a good model with an accuracy of 80-95%.
+
+# Description of the dataset columns.
+
+The following is a description of the various columns contained in the dataset above:
+
+*step* - unit of time (1 hour)
+
+*type *- CASH-IN, CASH-OUT, DEBIT, PAYMENT and TRANSFER.
+
+*amount* - transaction amount in local currency.
+
+*nameOrig* - transaction originator
+
+*oldbalanceOrg* - initial balance (before transaction)
+
+*newbalanceOrig* - new balance (after transaction)
+
+*nameDest* - transaction recipient
+
+*oldbalanceDest* - initial balance before transaction.
+
+*newbalanceDest* - new balance after transaction.
+
+*isFraud* - A fraud agent takes control of customers’ accounts and attempts to empty them by transferring their money to another account and then cashing out.
+
+*isFlaggedFraud* - An illegal attempt to transfer a massive amount of money in a single transaction.
+
+ 
+# Reading the Dataset
+
+```{r}
+#install.packages('ggpubr')
+
+```
+
+```{r}
+# Loading the Required Libraries
+
+# data.table::update.dev.pkg()
+library(data.table)
+library(tidyverse)
+library(psych)
+library(ggpubr)
+library(corrplot)
+
+```
+
+
+```{r}
+# Loading the dataset
+
+df <- read.csv("D:/C++/fraud_dataset_example.csv")
+```
+
+```{r}
+# Previewing the top records
+head(df)
+```
+
+```{r}
+summary(df)
+```
+
+```{r}
+# Checking the data types 
+str(df)
+
+```
+
+# Tidying the Dataset
+
+```{r}
+# Checking for missing values 
+colSums(is.na(df))
+
+# There are no missing values in our dataset.
+
+```
+
+*There are no missing values in our dataset.*
+
+```{r}
+# Converting the data to a table
+
+df1 <- data.frame(df)
+
+```
+
+```{r}
+# Converting column names to lower case for uniformity 
+
+colnames(df1) <- tolower(colnames(df1))
+
+# Confirming the changes 
+head(df1)
+
+```
+
+```{r}
+# Checking for outliers 
+## Identifying the numerical columns
+
+#numcols <- subset(df1, select = -c( type, nameorig, namedest,isfraud, isflaggedfraud))
+
+#head(numcols)
+
+# Checking for outliers using boxplot
+#boxplot(numcols)
+boxplot(df1$step, 
+        main = "Outliers in step variable", 
+        ylab = "Number of hours")
+```
+```{r}
+boxplot(df1$amount, 
+        main = "Outliers in amount variable", 
+        ylab = "Total amount transacted")
+```
+```{r}
+boxplot(df1$oldbalanceorg, df1$newbalanceorig,
+        main = "Outliers in oldbalanceorg and newbalanceorig ", 
+        ylab = "Original account Balance")
+```
+
+```{r}
+boxplot(df1$oldbalancedest, df1$newbalancedest,
+        main = "Outliers in oldbalancedest and newbalancedest ", 
+        ylab = "Destination account Balance")
+
+```
+
+The numerical columns in our dataset consist of amount transferred, new balances and old balances. The outliers are expected because we have different people doing transactions from different income levels. Since the outliers also form large part of our dataset, dropping them will leave us with a small amount of data to work with.  
+
+# Univariate Analysis
+
+## Central Tendecies
+
+```{r}
+numcols <- subset(df1, select = -c( type, nameorig, namedest,isfraud, isflaggedfraud))
+describe(numcols)
+
+```
+
+
+The mean time where the transactions occurred is between hour 8 to 9.
+
+The average transaction amount is 174,090.07 while the maximum transacted amount is 10,000,000.
+
+The average old balance in the original account before transaction is 907,175.26 and the maximum old balance amount before transaction is 38,939,424.
+
+The average new balance in the original account after transaction is 923,499.25 and the maximum new balance amount after transaction is 38,946,233.
+
+The average old balance in the destination account before transaction is 881,042.80 and the maximum old balance amount before transaction is 34,008,737.
+
+The average new balance in the destination account after transaction is 1,183,998.10 and the maximum new balance amount after transaction is 38,946,233.
+
+Apart from Step variable, all the other columns have positive skewness. 
+
+All our variables are leptokurtic because there kurtosis value is greater than 3. A high kurtosis means a heavy tail which indicates the presence of outliers while a low kurtosis means a light tail hence no outliers. A kurtosis greater than +1 indicates that the distribution is too peaked.(High kurtosis) while a kurtosis lower than -1 indicates a distribution that is too flat. Both of these parameters indicate that the distribution is not normal.
+
+```{r}
+# checking for Class Imbalance using vtree
+library(vtree)
+
+vtree(df1,"isfraud", title="Checking for class imbalance",horiz=FALSE)
+```
+
+Clearly, we can see that we have a class imbalance from the above diagram.
+
+
+# Graphical Univariate Analysis
+
+
+```{r}
+#defining the function
+density_plot<-function(data,var,main){
+  plot(density(data[[var]]),ylab="Distribution of transactions",main=main)
+  polygon(density(data[[var]]),col = "blue",border="red")
+}
+# calling the function
+density_plot(df1,1,"Distribution of steps")
+
+```
+Majority of the transactions are made within the 9th hour. The most active hours are within the 8th to 9th hour.
+
+### Checking how fraud is distributed across the dataset
+
+```{r}
+#install.packages("vtree")
+library(vtree)
+isfraud <-df1$isfraud
+vtree(isfraud,horiz=FALSE)
+```
+Out of 101614 observations made on transactions only 116 are labelled as fraud and this represent a tiny percentage of the entire information.
+
+ This can be attributed to the rear cases of fraud in financial institutions which normally happens once while involving a massive amount of money.
+### Checking for is flagged fraud
+```{r}
+isflaggedfraud<-df1$isflaggedfraud
+vtree(isflaggedfraud,horiz=FALSE, title="Those flagged")
+```
+We have discovered the is flagged fraud variable is redundant since it has zero values only and yet its a target variable.
+
+### Checking for the type of payments
+
+```{r}
+#install.packages("vtree")
+library(vtree)
+type_of_payment <-df1$type
+
+vtree(type_of_payment,horiz=FALSE, title="type")
+```
+
+The types of payments made were 101614 cash_in was 20540 representing 20%, cash_out was 31310 representing 31%, all debits were 1012 representing 1% of the entire transactions, all payment were 40062 representing 39% and transferred payments were 8689 which represent 9%.
+
+# Bivariate
+
+### Checking for the type of payments that are involve in fraud transactions
+
+```{r}
+vtree(df1,"isfraud type", title="Type of payments which are fraud or not ",
+      labelnode=list(isfraud=c(not_fraud ="0",fraud ="1")),horiz=FALSE)
+```
+A total of 116 fraud transactions cases are happening during cash outs at 51% which represent 59 cases where there is a direct cash payment and also during transfer at 49% representing 57 cases at this point it is where money are transferred from illegitimate account to a legitimate one before exchanging hands. 
+
+
+
+```{r}
+
+vtree(df1,summary="isfraud==1","step",title="Fraud transactions distribution per hour",horiz=FALSE)
+```
+
+
+Most of the fraudulent transactions happened at the 9th hour at a rate of 37% followed by the 10th hour with 28% and 21% by the 8th hour. 
+
+```{r}
+library(gridExtra)
+library(grid)
+library(tidyverse)
+p1<- ggplot(data = df1, aes(x = factor(isfraud) ,y = log1p(oldbalanceorg), fill = factor(isfraud))) + geom_boxplot(show.legend = FALSE) +labs(title= 'Old Balance in Sender Accounts' , x = 'isFraud', y='Balance Amount') +  theme_classic()
+
+p2 <- ggplot(data = df1, aes(x = factor(isfraud) ,y = log1p(oldbalancedest), fill = factor(isfraud))) + geom_boxplot(show.legend = FALSE) +labs(title= 'Old balance in Receiver Accounts' , x = 'isFraud',y='Balance Amount') +  theme_classic()
+
+grid.arrange(p1, p2, nrow = 1)
+```
+
+In the majority of fraud transactions, the Old balance of the Origin account is higher than the Old balance in Destination accounts.
+
+
+```{r}
+plot1<- ggplot(data = df1, aes(x = factor(isfraud) ,y = log1p(newbalanceorig), fill = factor(isfraud))) + geom_boxplot(show.legend = FALSE) +labs(title= 'New Balance in Sender Accounts' , x = 'isFraud', y='Balance Amount') +  theme_classic()
+
+plot2 <- ggplot(data = df1, aes(x = factor(isfraud) ,y = log1p(newbalancedest), fill = factor(isfraud))) + geom_boxplot(show.legend = FALSE) +labs(title= 'New balance in Receiver Accounts' , x = 'isFraud',y='Balance Amount') +  theme_classic()
+
+grid.arrange(plot1, plot2, nrow = 1)
+```
+
+
+The new balance in the senders account of those involve in fraudulent transaction is very low compared to the new balance in the receiver account indicating that a massive amount of money has been transferred from one account to the other. 
+
+```{r}
+# Checking for correlation
+
+corrplot(cor(numcols), type= 'upper', method = 'number', tl.cex = 0.9)
+```
+1. The origin old balance and origin new balance have perfect positive correlation.
+
+2. The destination old balance and destination new balance have very high positive correlation.
+
+
+
+#### Done upto this point 
+
+#### We proceed from here.
+
+# Feature engineering 
+ To perform our feature engineering we have to consider the following:
+ 
+*The data is heavily imbalanced for each target class. We should consider sampling methods, like undersampling, to reduce model bias*
+
+*We can filter our transaction types to include only CASH_OUT and TRANSFER types since these are the only transaction types with fraudulent cases*
+
+*Fraudulent transactions tend to be of smaller amounts*
+*Fraudulent transactions tend to occur from 12am-9am*
+
+## Feature Engineering and Data Cleaning
+
+Check to see if transactions where the transaction Amount is greater than the balance available in the Origin account occur
+
+```{r}
+library(data.table)
+head(df1[(df1$amount > df1$oldbalanceorg)& (df1$newbalancedest > df1$oldbalancedest), c("amount","oldbalanceorg", "newbalanceorig", "oldbalancedest", "newbalancedest", "isfraud")], 10)
+```
+
+
+#### Filter data
+As noted earlier, we will filter our data by type to include only CASH_OUT and TRANSFER, we can also drop nameOrig and nameDest, as there are too many unique levels to create dummy variables.
+
+```{r}
+ # Filtering transactions and drop irrelevant features
+df2<-df1 %>% 
+  select( -one_of('step','nameorig', 'namedest', 'isflaggedfraud')) %>%
+  filter(type %in% c('CASH_OUT','TRANSFER'))
+```
+
+```{r}
+head(df2)
+```
+
+All the fraud transactions occur in CASH_OUT and TRANSFER type, so we drop other types and nameOrig, nameDest, and isFlaggedFraud are not useful so we drop them.
+
+ ## Encoding Dummy variables for transaction type
+Since transaction type is categorical, we need to create dummy variables so the data is numerical
+```{r}
+#install.packages("fastDummies")
+library(fastDummies)
+
+df2<- dummy_cols(df2)
+
+df2$isfraud <- as.factor(df2$isfraud)
+df2 <- df2[,-1]
+df2<-as.data.frame(df2)
+
+```
+
+# splitting the data into Train and Test Data
+
+From the exploratory data analysis part we have know that fraud transactions are a rare event. Since fraudulent transactions only make up 116 of the data, duplicating fraudulent transactions in order to balance the data is not the best technique. It makes more sense to sample down non-event cases through undersampling.
+
+```{r}
+
+set.seed(12345)
+train_id <- sample(seq_len(nrow(df2)), size = floor(0.7*nrow(df2)))
+
+train <- df2[train_id,]
+test <- df2[-train_id,]
+
+table(train$isfraud)
+```
+```{r}
+table(test$isfraud)
+```
+## Handling imbalance using undersampling
+
+```{r}
+#install.packages("unbalanced")
+suppressMessages(library(unbalanced))
+set.seed(12345)
+prop.table(table(train$isfraud))
+```
+
+```{r}
+inputs <- train[,-6]
+target <- train[,6]
+
+under_sam <- ubUnder(X = inputs, Y = target)
+train_u <- cbind(under_sam$X, under_sam$Y)
+train_u$isfraud <- train_u$`under_sam$Y`
+train_u$`under_sam$Y` <- NULL
+
+table(train_u$isfraud)
+```
+```{r}
+prop.table(table(train_u$isfraud))
+```
+Using the undersampling method we are able to get a balanced training data set with 83 observations each. However, our test/ validation data will remain imbalanced,
+
+```{r}
+
+```
+
+
+
+
+
+# Modelling 
+
+## Decision Trees
+
+```{r}
+##Decision Tree
+#Decision tree using the undersampled data
+# Building the model
+library(rpart)
+library(rpart.plot)
+model_dt <- rpart(isfraud ~ ., data = train_u)
+prp(model_dt) 
+
+```
+```{r}
+#testing the model
+predict_dt <- predict(model_dt, test, type = "class")
+```
+
+```{r}
+library(caret)
+confusionMatrix(test$isfraud,predict_dt)
+```
+The accuracy of the model is 84% and its good after doing undersampling.
+
+## Calculate the F1 score
+
+The F1 score is the weighted average of Precision and Recall. We can calculate this metric using the information provided above since:
+
+Recall=Sensitivity
+Precision = Pos Pred Value
+
+```{r}
+
+#Recall=Sensitivity
+Recall_1<-0.9993
+Precision_1<-0.8447
+
+F1<-2*(Recall_1*Precision_1)/(Recall_1+Precision_1)
+F1*100
+```
+The F1 score for the decision tree model is 91.55% which is very good
+
+
+# Random Forest
+ 
+ This is another tree based model.
+ 
+
+```{r}
+# Create a Random Forest model with default parameters
+library(randomForest)
+model_rf <- randomForest(isfraud ~ ., data = train_u, importance = TRUE)
+model_rf
+```
+The estimate of error rate is 13.86%, lets see if we can improve this by tuning the paramters. In random forest models:
+
+*ntree* = number of trees in forest
+*mtry* = number of predictor variables included in split
+
+## Tuning the Random forest model
+
+
+
+```{r}
+#Fine tuning parameters of Random Forest model
+
+tuned_rf <- randomForest(isfraud ~ ., data = train_u, ntree = 500, mtry = 4, importance = TRUE)
+tuned_rf
+```
+
+```{r}
+# Predicting on train set
+predTrain <- predict(tuned_rf, train, type = "class")
+# Checking classification accuracy
+table(predTrain, train$isfraud)
+```
+
+The model seems to perform well on the training data set, now lets find out how well it does on validation.
+
+```{r}
+# Predicting on Validation set
+predValid <- predict(tuned_rf, test, type = "class")
+# Checking classification accuracy
+
+mean(predValid == test$isfraud)
+table(predValid, test$isfraud)
+```
+The random forest model performed very well using accuracy at 83.18%.
+
+## Calculating the F1 score
+
+
+```{r}
+TP=9954  
+TN=31
+FP=2014
+FN=2
+#Calculate Recall
+Recall=(TP/(TP+FN))
+Recall*100
+```
+
+The he random forest model has an f1 score of 99.97%. 
+
+
+
+# Conclusion 
+
+Both models have very high accuracy and any of them may be considered by the bank.
+
+# Recommendation
+
+We had very few samples on fraud that created a class imbalance and therefore our models are not very accurate in predicting fraud as compared to prediction on not fraud.
+
+Consider additional methods for tuning model parameters, in addition consider using clustering to find a more optimal KNN model.
+
+Consider additional machine learning techniques such as XGboost and Support Vector Machine algorithms.
+
+Diving deeper into why fraudulent transactions are only included in TRANSFER and CASH_OUT transaction types
+
+#Unsupervised Learning 
+
+## Multivariate Analysis
+
+### Feature Engineering
+
+```{r}
+colnames(df1)
+```
+
+```{r}
+#  dropping the columns that we will not require
+
+df_new <- subset(df1, select = -c(namedest, nameorig, isflaggedfraud))
+
+
+
+```
+
+```{r}
+# Converting the categorical column to numerical
+df_new$type <- as.factor(df_new$type)
+
+# Converting categorical columns to numeric
+
+df_new$type <- as.numeric(df_new$type)
+
+```
+
+## Dimensionality Reduction using PCA
+
+```{r}
+pca_df.pca <- prcomp(df_new[, c(1:7)], centre = TRUE, scale. = TRUE)
+
+summary(pca_df.pca)
+
+```
+
+We have obtained 7 principal components, where each explains a percentate of the total variation of the dataset.
+PC1 explains 34% of the total variance, PC2 explains 28.21% of the variance etc.
+
+```{r}
+# Calling str() to have a look at your PCA object
+str(pca_df.pca)
+
+```
+
+Here we have a look at the pca object: 
+  1. The center point ($center), scaling ($scale), standard deviation(sdev) of        each principal component. 
+  2. The relationship (correlation or anticorrelation, etc) between the initial       variables and the principal components ($rotation). 
+  3. The values of each sample in terms of the principal components.
+  
+```{r}
+# Plotting pca to get insights
+
+#install.packages("devtools")
+library(devtools)
+#install_github("vqv/ggbiplot")
+
+# Then Loading ggbiplot library
+library(ggbiplot)
+
+ggbiplot(pca_df.pca)
+bplot = ggbiplot(pcobj = pca_df.pca,
+         choices = c(1,2),
+         obs.scale = 1, var.scale = 1,
+         varname.size = 5,
+         varname.abbrev = FALSE,
+         var.axes = TRUE,
+         circle = TRUE)
+print(bplot)
+
+```
+
+```{r}
+#install.packages("factoextra")
+library(factoextra)
+fviz_pca_var(pca_df.pca,
+             col.var = "contrib", # Color contribution to PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE # Avoid text overlapping
+            )
+```
+
+Our graphs show that PC1 contributes 34.1%.  New Balance destination,old balance destination, old balance origin and new balance origin contribute highly to PC1.
+
+The type column contribute to PC2.
+
+# Feature Selection using Filter Method
+
+```{r}
+library(caret)
+
+```
+
+```{r}
+# preapring our data 
+feat_df <- df_new[-8]
+
+```
+
+```{r}
+# Calculating the correlation matrix
+CorrelationMatrix <- cor(feat_df)
+
+```
+
+```{r}
+# Find the attributes that are highly correlated
+highlycorrelated <- findCorrelation(CorrelationMatrix, cutoff=0.75)
+
+```
+
+```{r}
+# Highly Correlated Attributes
+
+names(feat_df[,highlycorrelated])
+
+```
+
+```{r}
+# Dropping the highly correlated attributes
+feat_df2 <- feat_df[-highlycorrelated]
+
+```
+
+```{r}
+# Performing Graphical Comparison
+library(corrplot)
+par(mfrow = c(1, 2))
+corrplot(CorrelationMatrix, order = "hclust")
+corrplot(cor(feat_df2), order = "hclust")
+
+
+```
+
+```{r}
+# The important features for analysis are:
+names(feat_df2)
+
+```
+
+These are the important features that we will use in our model. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
